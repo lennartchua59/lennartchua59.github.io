@@ -48,7 +48,7 @@
 
         #map {
             max-width: 100%;
-            height: 400px; /* Set a fixed height for the map */
+            height: 400px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
         }
 
@@ -58,16 +58,19 @@
             text-align: center;
             padding: 10px;
         }
+
         .routing-control {
             max-width: 300px;
         }
+
         .directions-collapse {
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.2s ease-in-out;
         }
+
         .directions-show {
-            max-height: 500px; /* Adjust the maximum height as needed */
+            max-height: 500px;
             overflow-y: auto;
         }
 
@@ -82,6 +85,23 @@
             max-height: 500px;
             overflow-y: auto;
         }
+        #userLocationMarker {
+            color: red;
+        }
+        button {
+        background-color: #0077B6;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        margin: 5px;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    /* Change button color on hover */
+    button:hover {
+        background-color: #005a8c;
+    }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
@@ -100,6 +120,7 @@
 
     <main>
         <div id="map"></div>
+        <button onclick="closeRoute()">close route</button>
     </main>
 
     <footer>
@@ -110,26 +131,38 @@
     <script src="https://cdn.rawgit.com/perliedman/leaflet-routing-machine/v3.2.12/dist/leaflet-routing-machine.js"></script>
     <script>
         // Initialize the map
-        var map = L.map('map');
+        var map = L.map('map').setView([1.310411032362568, 103.77767848691333], 16);
+        L.tileLayer('https://maps-{s}.onemap.sg/v3/Default/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            subdomains: ['a', 'b', 'c'],
+            attribution: 'Map data © <a href="https://www.onemap.sg/" target="_blank">OneMap</a>',
+            token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI4YmYzMDFhZWQ2NzY3NjJkZWQxZTgzYTQ0MWU5ODA1OCIsImlzcyI6Imh0dHA6Ly9pbnRlcm5hbC1hbGItb20tcHJkZXppdC1pdC0xMjIzNjk4OTkyLmFwLXNvdXRoZWFzdC0xLmVsYi5hbWF6b25hd3MuY29tL2FwaS92Mi91c2VyL3Bhc3N3b3JkIiwiaWF0IjoxNjk4MTE1MDMxLCJleHAiOjE2OTgzNzQyMzEsIm5iZiI6MTY5ODExNTAzMSwianRpIjoiMFRiTURPc2h0b1ZoOHZDOCIsInVzZXJfaWQiOjEzNjMsImZvcmV2ZXIiOmZhbHNlfQ.VU24uLUE0XPAsr-ZGfuDLeheqWfqqz3eDVVyaRRvE8o' // Replace with your OneMap token
+        }).addTo(map);
 
         var control; // Variable to hold the routing control
         var userLocationMarker; // Marker for user's current location
-        var waterRefillLocation; // Marker for water refill location
-        var waterRefillPopup; // Popup for water refill location
+        var waterRefillLocation1; // Marker for the first water refill location
+        var waterRefillLocation2; // Marker for the second water refill location
+
+        // Function to show the route
+      
 
         // Function to create or hide the routing control
-        function toggleRoutingControl(startLocation) {
-            if (!control) {
-                // Define the routing control only if it doesn't exist
-                var waypoints = [startLocation, waterRefillLocation.getLatLng()]; // Start from user location
+        // Function to show the route
+        function showRouteToWaterRefill(destination) {
+            var startLocation = userLocationMarker.getLatLng();
+            if (control) {
+                control.setWaypoints([startLocation, destination.getLatLng()]);
+            } else {
+                var waypoints = [startLocation, destination.getLatLng()];
                 control = L.Routing.control({
                     waypoints: waypoints,
                     routeWhileDragging: true,
-                    createMarker: function (i, wp, nWps) {
+                    createMarker: function (i, wp) {
                         if (i === 0) {
                             // Start point
                             return userLocationMarker;
-                        } else if (i === nWps - 1) {
+                        } else {
                             // End point (water refill location)
                             return L.marker(wp.latLng, {
                                 icon: waterRefillIcon
@@ -137,96 +170,89 @@
                         }
                     }
                 }).addTo(map);
+            }
+        }
+
+        // Function to create or update the user location marker
+        // Function to get the user's current location and create/update the marker
+        function getUserLocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    var userLocation = L.latLng(position.coords.latitude, position.coords.longitude);
+                    updateUserLocationMarker(userLocation);
+                });
             } else {
-                // Update waypoints and show/hide the routing control
-                var waypoints = [startLocation, waterRefillLocation.getLatLng()];
-                control.setWaypoints(waypoints);
-                if (control._container.style.display === 'none') {
-                    control.show();
-                } else {
-                    control.hide();
-                }
+                alert("Geolocation is not available in this browser.");
+            }
+        }
+
+
+          // Function to close or end the route
+          function closeRoute() {
+            if (control) {
+                control.spliceWaypoints(0, 2); // Remove all waypoints (user location and destination)
+                map.removeControl(control);
+                control = null; // Reset the control variable
             }
         }
 
         // Function to create or update the user location marker
         function updateUserLocationMarker(location) {
             if (!userLocationMarker) {
-                userLocationMarker = L.circleMarker(location, { color: 'red', radius: 5 });
+                userLocationMarker = L.circleMarker(location, { color: 'red', radius: 5, id: 'userLocationMarker' }).addTo(map);
             } else {
                 userLocationMarker.setLatLng(location);
             }
         }
 
-        // Get the user's current location
-        navigator.geolocation.getCurrentPosition(function(position) {
-            var userLocation = L.latLng(position.coords.latitude, position.coords.longitude);
-
-            map.setView(userLocation, 16);
-
-            updateUserLocationMarker(userLocation);
-            userLocationMarker.addTo(map);
-
-            // Create a custom icon for the water refill location marker
-            var waterRefillIcon = L.icon({
-                iconUrl: 'water-refill-icon.png', // Replace with the path to your icon image
-                iconSize: [18, 29], // Adjust the size as needed
-                iconAnchor: [16, 32], // Adjust the anchor point as needed
-                popupAnchor: [0, -32] // Adjust the popup anchor point as needed
-            });
-
-            waterRefillLocation = L.marker([1.310411032362568, 103.77767848691333], { icon: waterRefillIcon }).addTo(map);
-
-            waterRefillPopup = L.popup()
-                .setContent("Water Refill");
-
-            // Function to start or update the route
-            function startRouteFromUserLocation() {
-                var startLocation = userLocationMarker.getLatLng();
-                toggleRoutingControl(startLocation);
-            }
-
-            // Click event handler for the water refill location marker
-            waterRefillLocation.on('click', function (e) {
-                startRouteFromUserLocation();
-                waterRefillPopup.setLatLng(waterRefillLocation.getLatLng()).openOn(map);
-
-                // Prevent the click event from propagating to the map and hiding the control
-                L.DomEvent.stopPropagation(e);
-            });
-
-            // Close the popup when the mouse is not hovering over the marker
-            waterRefillLocation.on('mouseout', function () {
-                map.closePopup(waterRefillPopup);
-            });
-
-            // Function to handle map clicks
-            function handleMapClick(event) {
-                // Check if the click is not on the user location or water refill location markers
-                if (event.target !== userLocationMarker && event.target !== waterRefillLocation) {
-                    if (control && control._container.style.display !== 'none') {
-                        control.hide();
-                    }
-                }
-            }
-
-            // Add a click event listener to the map
-            map.on('click', handleMapClick);
-
-            L.tileLayer('https://maps-{s}.onemap.sg/v3/Default/{z}/{x}/{y}.png', {
-                maxZoom: 18,
-                subdomains: ['a', 'b', 'c'],
-                attribution: 'Map data © <a href="https://www.onemap.sg/" target="_blank">OneMap</a>',
-                token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI4YmYzMDFaZWQ2NzY2ZDZWQ1l83Tg0MWE5ODA1OCIsImlzcyI6Imh0dHA6Ly9pbnRlcm5hbC1hbGItb20tcHJkZXppdC1pdC0xMjIzNjk4OTkyLmFwLXNvdXRoZWFzdC0xLmVsYi5hbWF6b25hd3MuY29tL2FwaS92Mi91c2VyL3Bhc3N3b3JkIiwiaWF0IjoxNjk4MTE1MDMxLCJleHAiOjE2OTgzNzQyMzEsIm5iZiI6MTY5ODExNTAzMSwianRpIjoiMFRiTURPc2h0b1ZoOHZDOCIsInVzZXJfaWQiOjEzNjMsImZvcmV2ZXIiOmZhbHNlfQ.VU24uLUE0XPAsr-ZGfuDLeheqWfqqz3eDVVyaRRvE8o' // Replace with your OneMap token
-            }).addTo(map);
+        // Call the function to get the user's current location
+        getUserLocation();
+        // Create a custom icon for the water refill location marker
+        var waterRefillIcon = L.icon({
+            iconUrl: 'water-refill-icon.png', // Replace with the path to your icon image
+            iconSize: [18, 29], // Adjust the size as needed
+            iconAnchor: [16, 32], // Adjust the anchor point as needed
+            popupAnchor: [0, -32] // Adjust the popup anchor point as needed
         });
 
-        // Function to toggle directions list
-        function toggleDirections() {
-            var directionsList = document.getElementById('directions-list');
-            directionsList.classList.toggle('directions-collapse');
-            directionsList.classList.toggle('directions-show');
-        }
+        // Add the first water refill location marker
+        waterRefillLocation1 = L.marker([1.310411032362568, 103.77767848691333], { icon: waterRefillIcon }).addTo(map);
+
+        // Add the second water refill location marker
+        waterRefillLocation2 = L.marker([1.3089200745684473, 103.78006591806651], { icon: waterRefillIcon }).addTo(map);
+
+        // Click event handler for the water refill location markers
+        // Create a custom HTML structure for the popup content
+        var popupContent1 = `
+        <div style="text-align: center; padding: 5px;">
+        <p style="font-weight: bold; font-size: 16px;">Water Refill #1</p>
+        <button onclick="showRouteToWaterRefill(waterRefillLocation1)" style="background-color: #0077B6; color: #fff; border: none; padding: 5px 7px; margin-top: 5px; cursor: pointer; border-radius: 5px;">
+            Route to Water Refill 1
+        </button>
+    </div>
+        `;
+
+// Add the first water refill location marker with the custom popup content
+        waterRefillLocation1.bindPopup(popupContent1);
+        // Create a custom HTML structure for the second popup content with styling
+var popupContent2 = `
+    <div style="text-align: center; padding: 5px;">
+        <p style="font-weight: bold; font-size: 16px;">Water Refill #2</p>
+        <button onclick="showRouteToWaterRefill(waterRefillLocation2)" style="background-color: #0077B6; color: #fff; border: none; padding: 5px 7px; margin-top: 5px; cursor: pointer; border-radius: 5px;">
+            Route to Water Refill 2
+        </button>
+    </div>
+`;
+
+// Add the second water refill location marker with the custom styled popup content
+waterRefillLocation2.bindPopup(popupContent2);
+
+
+
+        
+       
+
+       
     </script>
 </body>
 </html>
