@@ -149,29 +149,32 @@
 
         // Function to create or hide the routing control
         // Function to show the route
-        function showRouteToWaterRefill(destination) {
-            var startLocation = userLocationMarker.getLatLng();
-            if (control) {
-                control.setWaypoints([startLocation, destination.getLatLng()]);
+        // Function to show the route without displaying the directions panel
+function showRouteToWaterRefill(destination) {
+    var startLocation = userLocationMarker.getLatLng();
+    if (control) {
+        // Remove the control to hide the directions panel
+        map.removeControl(control);
+    }
+    
+    var waypoints = [startLocation, destination.getLatLng()];
+    control = L.Routing.control({
+        waypoints: waypoints,
+        routeWhileDragging: true,
+        createMarker: function (i, wp) {
+            if (i === 0) {
+                // Start point
+                return userLocationMarker;
             } else {
-                var waypoints = [startLocation, destination.getLatLng()];
-                control = L.Routing.control({
-                    waypoints: waypoints,
-                    routeWhileDragging: true,
-                    createMarker: function (i, wp) {
-                        if (i === 0) {
-                            // Start point
-                            return userLocationMarker;
-                        } else {
-                            // End point (water refill location)
-                            return L.marker(wp.latLng, {
-                                icon: waterRefillIcon
-                            });
-                        }
-                    }
-                }).addTo(map);
+                // End point (water refill location)
+                return L.marker(wp.latLng, {
+                    icon: waterRefillIcon
+                });
             }
-        }
+        },
+        show: false, // Set show to false to hide the directions panel
+    }).addTo(map);
+}
 
         // Function to create or update the user location marker
         // Function to get the user's current location and create/update the marker
